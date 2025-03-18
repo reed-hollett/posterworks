@@ -11,22 +11,22 @@ let params = {
   activeTab: 0,
   
   // Screen size
-  screenSize: 412,
+  screenSize: 620,
   
   // Styling
   cornerRadius: 16,
   fontSize: 14,
-  tabPadding: 21,
-  indicatorHeight: 0, // No indicator since we're using background color
-  showIcons: false, // New parameter for showing icons
+  textVerticalPosition: 2,
+  indicatorHeight: 0,
+  showIcons: true,
   
   // Colors
-  backgroundColor: "#F5F5F5", // Light gray background
-  tabBackgroundColor: "#FFFFFF", // White for inactive tabs
-  activeTabBackgroundColor: "#6750A4", // Purple for active tab
-  tabTextColor: "#49454F", // Dark gray for inactive text
-  activeTabTextColor: "#FFFFFF", // White for active tab text
-  hoverTabBackgroundColor: "#F7F2FA", // Light purple for hover state
+  backgroundColor: "#F5F5F5",
+  tabBackgroundColor: "#FFFFFF",
+  activeTabBackgroundColor: "#6750A4",
+  tabTextColor: "#49454F",
+  activeTabTextColor: "#FFFFFF",
+  hoverTabBackgroundColor: "#F7F2FA",
   
   // Export
   export: function() {
@@ -41,9 +41,42 @@ let mouseOverTab = -1;
 const tabIcons = ["home", "description", "info", "folder"];
 let iconElements = [];
 
+// Color palette with 12 different hues
+const colorPalette = [
+  "#6750A4", // Purple (original)
+  "#B3261E", // Red
+  "#F2B8B5", // Light Red
+  "#E94235", // Google Red
+  "#FF8A65", // Orange
+  "#FB8C00", // Dark Orange
+  "#FFB74D", // Amber
+  "#FDD835", // Yellow
+  "#7CB342", // Light Green
+  "#0F9D58", // Google Green
+  "#00BCD4", // Cyan
+  "#4285F4"  // Google Blue
+];
+
+// Select a random color on load
+let randomColorIndex = Math.floor(Math.random() * colorPalette.length);
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textFont('Roboto, sans-serif');
+  
+  // Set the active tab color to a random color from the palette
+  params.activeTabBackgroundColor = colorPalette[randomColorIndex];
+  
+  // Calculate a matching hover color (lighter version of the active color)
+  const activeColor = color(params.activeTabBackgroundColor);
+  const r = red(activeColor);
+  const g = green(activeColor);
+  const b = blue(activeColor);
+  params.hoverTabBackgroundColor = color(
+    r + (255 - r) * 0.85,
+    g + (255 - g) * 0.85,
+    b + (255 - b) * 0.85
+  ).toString('#rrggbb');
   
   // Add Material Icons stylesheet to the document
   const link = document.createElement('link');
@@ -87,7 +120,7 @@ function setup() {
   // Styling
   gui.add(params, 'cornerRadius', 0, 30, 1).name('Corner Radius').onChange(redraw);
   gui.add(params, 'fontSize', 12, 24, 1).name('Font Size').onChange(redraw);
-  gui.add(params, 'tabPadding', 10, 40, 1).name('Tab Padding').onChange(redraw);
+  gui.add(params, 'textVerticalPosition', -20, 20, 1).name('Text Y Position').onChange(redraw);
   gui.add(params, 'activeTab', 0, 3, 1).name('Active Tab').onChange(redraw);
   gui.add(params, 'showIcons').name('Add Icons').onChange(redraw);
   
@@ -204,14 +237,17 @@ function draw() {
       icon.style.display = 'block';
       icon.style.fontSize = `${iconSize}px`;
       icon.style.left = `${startX}px`;
-      icon.style.top = `${tabsY + tabsHeight/2 - iconSize/2}px`;
+      
+      // Adjust icon vertical position to align with text
+      // The icon needs different positioning than the text to appear aligned
+      icon.style.top = `${tabsY + tabsHeight/2 - iconSize/2 + params.textVerticalPosition - 1}px`;
       icon.style.color = params.activeTabTextColor;
       
-      // Draw the text
-      text(tabTitles[i], startX + iconSize + spacing + textW/2, tabsY + tabsHeight / 2);
+      // Draw the text with vertical position adjustment
+      text(tabTitles[i], startX + iconSize + spacing + textW/2, tabsY + tabsHeight / 2 + params.textVerticalPosition);
     } else {
-      // Just draw the text centered
-      text(tabTitles[i], tabX + tabWidth / 2, tabsY + tabsHeight / 2);
+      // Just draw the text centered with vertical position adjustment
+      text(tabTitles[i], tabX + tabWidth / 2, tabsY + tabsHeight / 2 + params.textVerticalPosition);
     }
   }
 }
