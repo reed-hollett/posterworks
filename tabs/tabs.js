@@ -20,11 +20,12 @@ let params = {
   indicatorHeight: 4,
   
   // Colors
-  backgroundColor: "#E6E6FA", // Light lavender
+  backgroundColor: "#F5F5F5", // Light gray background
   tabBackgroundColor: "#FFFFFF", // White
-  tabTextColor: "#333333", // Dark gray
-  activeTabTextColor: "#000000", // Black
-  indicatorColor: "#6A5ACD", // Slate blue
+  tabTextColor: "#49454F", // Dark gray
+  activeTabTextColor: "#1F6E43", // Dark green from image
+  indicatorColor: "#1F6E43", // Dark green from image
+  hoverTabBackgroundColor: "#F7F2FA", // Light hover color
   
   // Export
   export: function() {
@@ -32,9 +33,43 @@ let params = {
   }
 };
 
+// Color palette from the image
+const colorPalette = [
+  "#1F6E43", // Dark green
+  "#2D9D6C", // Medium green
+  "#4DB38A", // Light green
+  "#8FD65B", // Lime green
+  "#D9E64A", // Yellow-green
+  
+  "#0A3B6D", // Dark blue
+  "#2D6FC1", // Medium blue
+  "#4A9FE6", // Light blue
+  "#6BCBF5", // Sky blue
+  "#A8E7F0", // Light cyan
+  
+  "#6B4D1E", // Brown
+  "#C42E1B", // Red
+  "#E84C30", // Orange-red
+  "#F7954A", // Orange
+  "#FFCF54"  // Yellow
+];
+
+// Track mouse position and hover state
+let mouseOverTab = -1;
+
+// Select a random color on load
+let randomColorIndex = Math.floor(Math.random() * colorPalette.length);
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textFont('Roboto, sans-serif');
+  
+  // Set the active tab color to a random color from the palette
+  params.indicatorColor = colorPalette[randomColorIndex];
+  params.activeTabTextColor = colorPalette[randomColorIndex];
+  
+  // Calculate a matching hover color (lighter version of the active color)
+  updateHoverColor();
   
   // Setup GUI - single panel with all controls
   gui = new lil.GUI();
@@ -60,7 +95,11 @@ function setup() {
   gui.add(params, 'fontSize', 12, 24, 1).name('Font Size').onChange(redraw);
   gui.add(params, 'tabPadding', 10, 40, 1).name('Tab Padding').onChange(redraw);
   gui.add(params, 'indicatorHeight', 1, 10, 1).name('Indicator Height').onChange(redraw);
-  gui.addColor(params, 'indicatorColor').name('Indicator').onChange(redraw);
+  gui.addColor(params, 'indicatorColor').name('Indicator').onChange(function() {
+    // Update hover color when indicator color changes
+    updateHoverColor();
+    redraw();
+  });
   gui.add(params, 'activeTab', 0, 3, 1).name('Active Tab').onChange(redraw);
   
   // Add another spacer
@@ -73,13 +112,13 @@ function setup() {
   gui.addColor(params, 'tabBackgroundColor').name('Tab Background').onChange(redraw);
   gui.addColor(params, 'tabTextColor').name('Tab Text').onChange(redraw);
   gui.addColor(params, 'activeTabTextColor').name('Active Tab Text').onChange(redraw);
+  gui.addColor(params, 'hoverTabBackgroundColor').name('Hover Tab BG').onChange(redraw);
   
   // Export
   gui.add(params, 'export').name('Export as PNG');
   
-  // Initial draw
-  noLoop();
-  redraw();
+  // Enable loop for hover effects
+  loop();
   
   // Apply theme
   applyTheme(getCurrentTheme());
@@ -111,6 +150,25 @@ function draw() {
   // Calculate tab widths
   const tabWidth = tabsWidth / params.tabCount;
   
+  // Check which tab the mouse is over
+  mouseOverTab = -1;
+  if (mouseY >= tabsY && mouseY <= tabsY + tabsHeight) {
+    for (let i = 0; i < params.tabCount; i++) {
+      const tabX = tabsX + i * tabWidth;
+      if (mouseX >= tabX && mouseX <= tabX + tabWidth) {
+        mouseOverTab = i;
+        // Change cursor to pointer when over a tab
+        cursor(HAND);
+        break;
+      }
+    }
+  }
+  
+  if (mouseOverTab === -1) {
+    // Reset cursor when not over a tab
+    cursor(AUTO);
+  }
+  
   // Draw tabs
   textSize(params.fontSize);
   textAlign(CENTER, CENTER);
@@ -118,6 +176,13 @@ function draw() {
   for (let i = 0; i < params.tabCount; i++) {
     const tabX = tabsX + i * tabWidth;
     const isActive = i === params.activeTab;
+    const isHovered = i === mouseOverTab && !isActive;
+    
+    // Tab background for hover effect
+    if (isHovered) {
+      fill(params.hoverTabBackgroundColor);
+      rect(tabX, tabsY, tabWidth, tabsHeight);
+    }
     
     // Tab text
     fill(isActive ? params.activeTabTextColor : params.tabTextColor);
@@ -128,6 +193,13 @@ function draw() {
       fill(params.indicatorColor);
       rect(tabX, tabsY + tabsHeight - params.indicatorHeight, tabWidth, params.indicatorHeight);
     }
+  }
+}
+
+function mousePressed() {
+  if (mouseOverTab !== -1) {
+    params.activeTab = mouseOverTab;
+    redraw();
   }
 }
 
@@ -183,6 +255,22 @@ function updateControllerStyles(gui, color) {
       }
     }
   });
+}
+
+// Add this new function to calculate hover color based on the indicator color
+function updateHoverColor() {
+  // Convert the indicator color to RGB
+  const c = color(params.indicatorColor);
+  const r = red(c);
+  const g = green(c);
+  const b = blue(c);
+  
+  // Create a lighter version (90% lighter toward white)
+  params.hoverTabBackgroundColor = color(
+    r + (255 - r) * 0.9,
+    g + (255 - g) * 0.9,
+    b + (255 - b) * 0.9
+  ).toString('#rrggbb');
 }
 
 window.addEventListener('storage', function(e) {
