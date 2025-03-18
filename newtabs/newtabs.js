@@ -37,12 +37,33 @@ let params = {
 // Track mouse position and hover state
 let mouseOverTab = -1;
 
-// Icons for each tab (emoji representations)
-const tabIcons = ["🏠", "📄", "ℹ️", "📁"];
+// Material Icons for each tab
+const tabIcons = ["home", "description", "info", "folder"];
+let iconElements = [];
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textFont('Roboto, sans-serif');
+  
+  // Add Material Icons stylesheet to the document
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
+  document.head.appendChild(link);
+  
+  // Create icon elements
+  for (let i = 0; i < tabIcons.length; i++) {
+    const icon = document.createElement('span');
+    icon.className = 'material-icons';
+    icon.textContent = tabIcons[i];
+    icon.style.position = 'absolute';
+    icon.style.display = 'none';
+    icon.style.color = params.activeTabTextColor;
+    icon.style.userSelect = 'none';
+    icon.style.pointerEvents = 'none';
+    document.body.appendChild(icon);
+    iconElements.push(icon);
+  }
   
   // Setup GUI - single panel with all controls
   gui = new lil.GUI();
@@ -137,6 +158,11 @@ function draw() {
   textSize(params.fontSize);
   textAlign(CENTER, CENTER);
   
+  // Hide all icons first
+  iconElements.forEach(icon => {
+    icon.style.display = 'none';
+  });
+  
   for (let i = 0; i < params.tabCount; i++) {
     const tabX = tabsX + i * tabWidth;
     const isActive = i === params.activeTab;
@@ -166,17 +192,23 @@ function draw() {
     
     // If showing icons and this is the active tab
     if (params.showIcons && isActive) {
-      // Draw icon and text with spacing
-      const iconSize = params.fontSize;
-      const spacing = iconSize / 2;
-      const totalWidth = textWidth(tabIcons[i]) + spacing + textWidth(tabTitles[i]);
+      // Calculate positions
+      const iconSize = params.fontSize * 1.2;
+      const spacing = params.fontSize * 0.5;
+      const textW = textWidth(tabTitles[i]);
+      const totalWidth = iconSize + spacing + textW;
       const startX = tabX + tabWidth / 2 - totalWidth / 2;
       
-      // Draw icon
-      text(tabIcons[i], startX + textWidth(tabIcons[i]) / 2, tabsY + tabsHeight / 2);
+      // Position and show the icon
+      const icon = iconElements[i];
+      icon.style.display = 'block';
+      icon.style.fontSize = `${iconSize}px`;
+      icon.style.left = `${startX}px`;
+      icon.style.top = `${tabsY + tabsHeight/2 - iconSize/2}px`;
+      icon.style.color = params.activeTabTextColor;
       
-      // Draw text
-      text(tabTitles[i], startX + textWidth(tabIcons[i]) + spacing + textWidth(tabTitles[i]) / 2, tabsY + tabsHeight / 2);
+      // Draw the text
+      text(tabTitles[i], startX + iconSize + spacing + textW/2, tabsY + tabsHeight / 2);
     } else {
       // Just draw the text centered
       text(tabTitles[i], tabX + tabWidth / 2, tabsY + tabsHeight / 2);
@@ -281,4 +313,20 @@ window.addEventListener('storage', function(e) {
   if (e.key === 'theme') {
     applyTheme(e.newValue);
   }
-}); 
+});
+
+// Clean up when the sketch is removed
+function remove() {
+  // Remove icon elements
+  iconElements.forEach(icon => {
+    if (icon && icon.parentNode) {
+      icon.parentNode.removeChild(icon);
+    }
+  });
+  iconElements = [];
+  
+  // Call the original remove function
+  if (typeof p5.prototype.remove === 'function') {
+    p5.prototype.remove.call(this);
+  }
+} 
