@@ -6,6 +6,10 @@ let params = {
   value: "",
   helperText: "Supporting text",
   
+  // Visibility toggles
+  showLabel: true,
+  showHelperText: true,
+  
   // Field state
   state: "Enabled", // Enabled, Disabled, Error, Focused
   
@@ -77,6 +81,8 @@ let mouseOverTrailingIcon = false;
 let fieldFocused = false;
 let currentRadius = 100; // Track the current animated radius
 let lastFrameTime = 0; // For animation timing
+let cursorVisible = true; // For cursor blinking
+let cursorBlinkTime = 0; // Track time for cursor blinking
 
 // Select a random color on load
 let randomColorIndex = Math.floor(Math.random() * colorPalette.length);
@@ -91,6 +97,10 @@ function setup() {
   
   // Set the active color to a random color from the palette
   params.activeColor = colorPalette[randomColorIndex];
+  
+  // Randomly set the visibility of label and helper text on reload
+  params.showLabel = Math.random() >= 0.5;
+  params.showHelperText = Math.random() >= 0.5;
   
   // Create icon elements
   leadingIconElement = document.createElement('span');
@@ -117,9 +127,11 @@ function setup() {
   
   // Text field content
   gui.add(params, 'label').name('Label Text').onChange(redraw);
+  gui.add(params, 'showLabel').name('Show Label').onChange(redraw);
   gui.add(params, 'placeholder').name('Placeholder').onChange(redraw);
   gui.add(params, 'value').name('Input Value').onChange(redraw);
   gui.add(params, 'helperText').name('Helper Text').onChange(redraw);
+  gui.add(params, 'showHelperText').name('Show Helper Text').onChange(redraw);
   
   // Field state
   gui.add(params, 'state', ['Enabled', 'Focused', 'Error', 'Disabled']).name('Field State').onChange(function() {
@@ -187,6 +199,12 @@ function draw() {
   const deltaTime = (currentTime - lastFrameTime) / 1000; // Convert to seconds
   lastFrameTime = currentTime;
   
+  // Blink cursor every 530ms (standard cursor blink rate)
+  if (fieldFocused && currentTime - cursorBlinkTime > 530) {
+    cursorVisible = !cursorVisible;
+    cursorBlinkTime = currentTime;
+  }
+  
   // Animate corner radius
   if (fieldFocused || params.state === 'Focused') {
     // Animate towards target radius
@@ -251,27 +269,51 @@ function draw() {
   const helperTextX = fieldX + params.fieldPadding;
   const helperTextY = fieldY + fieldHeight + params.fieldPadding;
   
-  // Draw label
-  noStroke();
-  fill(fieldFocused || params.value ? activeLabelColor : params.labelColor);
-  textSize(params.labelSize);
-  textAlign(LEFT, CENTER);
-  text(params.label, labelX, labelY);
+  // Draw label if enabled
+  if (params.showLabel) {
+    noStroke();
+    fill(fieldFocused || params.value ? activeLabelColor : params.labelColor);
+    textSize(params.labelSize);
+    textAlign(LEFT, CENTER);
+    text(params.label, labelX, labelY);
+  }
   
   // Draw input text or placeholder
   textSize(params.fontSize);
   if (params.value) {
     fill(params.state === 'Disabled' ? color(params.textColor).levels.concat(38) : params.textColor);
     text(params.value, textX, textY);
+    
+    // Draw blinking cursor after text if field is focused
+    if (fieldFocused && cursorVisible) {
+      const valueWidth = textWidth(params.value);
+      stroke(params.activeColor);
+      strokeWeight(2);
+      line(textX + valueWidth + 2, textY - params.fontSize/2, textX + valueWidth + 2, textY + params.fontSize/2);
+      noStroke();
+    }
   } else {
-    fill(color(params.labelColor).levels.concat(128)); // Semi-transparent
-    text(params.placeholder, textX, textY);
+    if (fieldFocused) {
+      // Show blinking cursor at start position when empty
+      if (cursorVisible) {
+        stroke(params.activeColor);
+        strokeWeight(2);
+        line(textX, textY - params.fontSize/2, textX, textY + params.fontSize/2);
+        noStroke();
+      }
+    } else {
+      // Show placeholder when not focused and empty
+      fill(color(params.labelColor).levels.concat(128)); // Semi-transparent
+      text(params.placeholder, textX, textY);
+    }
   }
   
-  // Draw helper text
-  textSize(params.helperTextSize);
-  fill(params.state === 'Error' ? params.errorColor : params.helperTextColor);
-  text(params.helperText, helperTextX, helperTextY);
+  // Draw helper text if enabled
+  if (params.showHelperText) {
+    textSize(params.helperTextSize);
+    fill(params.state === 'Error' ? params.errorColor : params.helperTextColor);
+    text(params.helperText, helperTextX, helperTextY);
+  }
   
   // Position and show icons if needed
   if (params.showLeadingIcon) {
@@ -325,9 +367,13 @@ function mousePressed() {
       redraw();
     }
   } else if (mouseOverField && params.state !== 'Disabled') {
-    // Focus the field
+    // Focus the field and clear the value
     params.state = 'Focused';
     fieldFocused = true;
+    params.value = ''; // Clear the input text
+    // Reset cursor blinking
+    cursorVisible = true;
+    cursorBlinkTime = millis();
     // Start animation by setting lastFrameTime
     lastFrameTime = millis();
     // No need to call redraw() as we're using loop()
