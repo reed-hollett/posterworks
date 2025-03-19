@@ -246,8 +246,8 @@ function draw() {
   const textX = fieldX + params.fieldPadding + (params.showLeadingIcon ? 30 : 0); // 24dp icon + 6dp spacing
   const textY = fieldY + fieldHeight / 2 + params.fontSize / 4;
   const labelX = textX;
-  // Reduce the vertical space between label and input text
-  const labelY = fieldY + params.fieldPadding / 3; // Reduced from fieldPadding/2
+  // Position label much closer to the input text
+  const labelY = fieldY + params.fieldPadding / 6 + params.labelSize; // Bring label closer to input
   const helperTextX = fieldX + params.fieldPadding;
   const helperTextY = fieldY + fieldHeight + params.fieldPadding;
   
