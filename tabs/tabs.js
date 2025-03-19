@@ -18,6 +18,7 @@ let params = {
   fontSize: 14,
   tabPadding: 21,
   indicatorHeight: 4,
+  indicatorCornerRadius: 2,
   
   // Colors
   backgroundColor: "#F5F5F5", // Light gray background
@@ -95,6 +96,7 @@ function setup() {
   gui.add(params, 'fontSize', 12, 24, 1).name('Font Size').onChange(redraw);
   gui.add(params, 'tabPadding', 10, 40, 1).name('Tab Padding').onChange(redraw);
   gui.add(params, 'indicatorHeight', 1, 10, 1).name('Indicator Height').onChange(redraw);
+  gui.add(params, 'indicatorCornerRadius', 0, 10, 1).name('Indicator Radius').onChange(redraw);
   gui.addColor(params, 'indicatorColor').name('Indicator').onChange(function() {
     // Update hover color when indicator color changes
     updateHoverColor();
@@ -188,10 +190,11 @@ function draw() {
     fill(isActive ? params.activeTabTextColor : params.tabTextColor);
     text(tabTitles[i], tabX + tabWidth / 2, tabsY + tabsHeight / 2);
     
-    // Active indicator
+    // Active indicator with rounded corners
     if (isActive) {
       fill(params.indicatorColor);
-      rect(tabX, tabsY + tabsHeight - params.indicatorHeight, tabWidth, params.indicatorHeight);
+      rect(tabX, tabsY + tabsHeight - params.indicatorHeight, tabWidth, params.indicatorHeight, 
+           params.indicatorCornerRadius);
     }
   }
 }
