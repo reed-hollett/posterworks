@@ -98,9 +98,10 @@ function setup() {
   // Set the active color to a random color from the palette
   params.activeColor = colorPalette[randomColorIndex];
   
-  // Randomly set the visibility of label and helper text on reload
+  // Randomly set the visibility of label, helper text, and leading icon on reload
   params.showLabel = Math.random() >= 0.5;
   params.showHelperText = Math.random() >= 0.5;
+  params.showLeadingIcon = Math.random() >= 0.5;
   
   // Create icon elements
   leadingIconElement = document.createElement('span');
