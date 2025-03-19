@@ -262,7 +262,12 @@ function draw() {
   
   // Calculate text positions with padding
   const textX = fieldX + params.fieldPadding + (params.showLeadingIcon ? 30 : 0); // 24dp icon + 6dp spacing
-  const textY = fieldY + fieldHeight / 2 + params.fontSize / 4;
+  
+  // Adjust text Y position - center it when no label is shown
+  const textY = params.showLabel ? 
+    fieldY + fieldHeight / 2 + params.fontSize / 4 : 
+    fieldY + fieldHeight / 2;
+    
   const labelX = textX;
   // Position label much closer to the input text
   const labelY = fieldY + params.fieldPadding / 6 + params.labelSize; // Bring label closer to input
@@ -280,6 +285,7 @@ function draw() {
   
   // Draw input text or placeholder
   textSize(params.fontSize);
+  textAlign(LEFT, CENTER);
   if (params.value) {
     fill(params.state === 'Disabled' ? color(params.textColor).levels.concat(38) : params.textColor);
     text(params.value, textX, textY);
@@ -289,7 +295,9 @@ function draw() {
       const valueWidth = textWidth(params.value);
       stroke(params.activeColor);
       strokeWeight(2);
-      line(textX + valueWidth + 2, textY - params.fontSize/2, textX + valueWidth + 2, textY + params.fontSize/2);
+      // Adjust cursor height - increased by 25%
+      const cursorHeight = params.fontSize * 1.0; // Changed from 0.8 to 1.0 (25% increase)
+      line(textX + valueWidth + 2, textY - cursorHeight/2, textX + valueWidth + 2, textY + cursorHeight/2);
       noStroke();
     }
   } else {
@@ -298,7 +306,9 @@ function draw() {
       if (cursorVisible) {
         stroke(params.activeColor);
         strokeWeight(2);
-        line(textX, textY - params.fontSize/2, textX, textY + params.fontSize/2);
+        // Adjust cursor height - increased by 25%
+        const cursorHeight = params.fontSize * 1.0; // Changed from 0.8 to 1.0 (25% increase)
+        line(textX, textY - cursorHeight/2, textX, textY + cursorHeight/2);
         noStroke();
       }
     } else {
