@@ -17,8 +17,8 @@ let params = {
   screenSize: 412,
   
   // Styling
-  cornerRadius: 100, // Default to pill shape when inactive
-  targetRadius: 8, // Target radius when focused
+  cornerRadius: 100, // Default to pill shape when inactive (minimum value is now 12)
+  targetRadius: 12, // Target radius when focused (minimum value is now 12)
   fontSize: 16,
   labelSize: 12,
   helperTextSize: 12,
@@ -74,6 +74,12 @@ let lastFrameTime = 0; // For animation timing
 let cursorVisible = true; // For cursor blinking
 let cursorBlinkTime = 0; // Track time for cursor blinking
 
+// Text selection variables
+let selectionStart = -1; // Start position of selection in the current field
+let selectionEnd = -1; // End position of selection in the current field
+let isSelecting = false; // Whether user is currently dragging to select text
+let selectionField = -1; // Which field has the selection
+
 // Field values
 let fieldValues = Array(10).fill("");
 
@@ -95,9 +101,9 @@ function setup() {
       showHelperText: Math.random() >= 0.5,
       showLeadingIcon: Math.random() >= 0.5,
       showTrailingIcon: Math.random() >= 0.5,
-      cornerRadius: Math.random() >= 0.3 ? 100 : Math.floor(Math.random() * 16) + 4, // 70% pill-shaped, 30% random radius
-      targetRadius: Math.floor(Math.random() * 12) + 4, // Random target radius between 4-16
-      state: Math.random() >= 0.8 ? "Enabled" : (Math.random() >= 0.6 ? "Error" : "Disabled"), // Reduce disabled fields
+      cornerRadius: Math.random() >= 0.3 ? 100 : Math.floor(Math.random() * 16) + 12, // 70% pill-shaped, 30% random radius between 12-28
+      targetRadius: Math.floor(Math.random() * 16) + 12, // Random target radius between 12-28
+      state: Math.random() >= 0.7 ? "Enabled" : "Error", // Only Enabled or Error states, no Disabled
       leadingIcon: iconOptions[Math.floor(Math.random() * iconOptions.length)],
       trailingIcon: iconOptions[Math.floor(Math.random() * iconOptions.length)],
       fontSize: Math.floor(Math.random() * 6) + 14 // Random font size between 14-20
@@ -106,18 +112,6 @@ function setup() {
     // Set initial text values for some fields
     if (Math.random() >= 0.7) {
       fieldValues[i] = "Sample " + (i + 1);
-    }
-  }
-  
-  // Ensure at least 7 fields are enabled
-  let enabledCount = fieldParams.filter(param => param.state === "Enabled" || param.state === "Error").length;
-  if (enabledCount < 7) {
-    // Convert some disabled fields to enabled
-    for (let i = 0; i < fieldParams.length && enabledCount < 7; i++) {
-      if (fieldParams[i].state === "Disabled") {
-        fieldParams[i].state = "Enabled";
-        enabledCount++;
-      }
     }
   }
   
@@ -166,8 +160,8 @@ function setup() {
   
   // Screen size and styling
   gui.add(params, 'screenSize', 320, 412, 1).name('Field Width').onChange(redraw);
-  gui.add(params, 'cornerRadius', 0, 100, 1).name('Corner Radius').onChange(redraw);
-  gui.add(params, 'targetRadius', 0, 20, 1).name('Target Radius').onChange(redraw);
+  gui.add(params, 'cornerRadius', 12, 100, 1).name('Corner Radius').onChange(redraw);
+  gui.add(params, 'targetRadius', 12, 32, 1).name('Target Radius').onChange(redraw);
   gui.add(params, 'fontSize', 12, 24, 1).name('Input Font Size').onChange(redraw);
   gui.add(params, 'labelSize', 10, 18, 1).name('Label Font Size').onChange(redraw);
   gui.add(params, 'helperTextSize', 10, 18, 1).name('Helper Text Size').onChange(redraw);
@@ -229,6 +223,8 @@ function draw() {
       // Animate back to default radius when not focused
       currentRadiuses[i] = lerp(currentRadiuses[i], fieldParams[i].cornerRadius, 0.1);
     }
+    // Ensure radius never drops below 12 during animation
+    currentRadiuses[i] = Math.max(currentRadiuses[i], 12);
   }
   
   // Clear canvas and set background
@@ -344,17 +340,61 @@ function drawTextField(index, fieldY, activeColor) {
   textAlign(LEFT, CENTER);
   if (fieldValues[index]) {
     fill(isDisabled ? color("#1C1B1F").levels.concat(38) : "#1C1B1F");
-    text(fieldValues[index], textX, textY);
+    
+    // Check if this field has any selected text
+    if (selectionField === index && selectionStart !== selectionEnd) {
+      // Get normalized selection positions
+      const start = Math.min(selectionStart, selectionEnd);
+      const end = Math.max(selectionStart, selectionEnd);
+      
+      // Draw text in three parts: before selection, selected text, after selection
+      const beforeText = fieldValues[index].substring(0, start);
+      const selectedText = fieldValues[index].substring(start, end);
+      const afterText = fieldValues[index].substring(end);
+      
+      // First draw the text before selection
+      if (beforeText) {
+        text(beforeText, textX, textY);
+      }
+      
+      // Calculate position for selected text
+      const beforeWidth = textWidth(beforeText);
+      const selectionX = textX + beforeWidth;
+      
+      // Draw selection background
+      const selectionWidth = textWidth(selectedText);
+      const selectionColor = color(activeColor);
+      selectionColor.setAlpha(100); // Semi-transparent
+      fill(selectionColor);
+      noStroke();
+      const selectionHeight = fieldParams[index].fontSize * 1.4;
+      rect(selectionX, textY - selectionHeight/2, selectionWidth, selectionHeight);
+      
+      // Draw selected text
+      fill(isDisabled ? color("#1C1B1F").levels.concat(38) : "#1C1B1F");
+      text(selectedText, selectionX, textY);
+      
+      // Draw text after selection
+      if (afterText) {
+        text(afterText, selectionX + selectionWidth, textY);
+      }
+    } else {
+      // No selection, draw text normally
+      text(fieldValues[index], textX, textY);
+    }
     
     // Draw blinking cursor after text if field is focused
-    if (fieldFocused === index && cursorVisible) {
-      const valueWidth = textWidth(fieldValues[index]);
-      stroke(activeColor);
-      strokeWeight(2);
-      // Adjust cursor height - increased by 25%
-      const cursorHeight = fieldParams[index].fontSize * 1.0;
-      line(textX + valueWidth + 2, textY - cursorHeight/2, textX + valueWidth + 2, textY + cursorHeight/2);
-      noStroke();
+    if (fieldFocused === index && cursorVisible && !isSelecting) {
+      // If we have a selection, don't show the cursor
+      if (!(selectionField === index && selectionStart !== selectionEnd)) {
+        const valueWidth = textWidth(fieldValues[index]);
+        stroke(activeColor);
+        strokeWeight(2);
+        // Adjust cursor height - increased by 25%
+        const cursorHeight = fieldParams[index].fontSize * 1.0;
+        line(textX + valueWidth + 2, textY - cursorHeight/2, textX + valueWidth + 2, textY + cursorHeight/2);
+        noStroke();
+      }
     }
   } else {
     if (fieldFocused === index) {
@@ -432,6 +472,10 @@ function mousePressed() {
       // Clear the field value when clicking the trailing icon (if it's a close icon)
       if (fieldParams[mouseOverTrailingIcon].trailingIcon === 'close') {
         fieldValues[mouseOverTrailingIcon] = '';
+        // Clear any selection if we clear text
+        if (selectionField === mouseOverTrailingIcon) {
+          clearSelection();
+        }
         redraw();
       }
     }
@@ -447,13 +491,95 @@ function mousePressed() {
       cursorBlinkTime = millis();
       // Start animation by setting lastFrameTime
       lastFrameTime = millis();
+      
+      // Handle text selection initiation
+      if (fieldValues[mouseOverField].length > 0) {
+        // Start selection at cursor position
+        const textX = getTextX(mouseOverField);
+        const cursorPos = getCursorPosFromX(mouseOverField, textX, mouseX);
+        selectionStart = cursorPos;
+        selectionEnd = cursorPos;
+        selectionField = mouseOverField;
+        isSelecting = true;
+      } else {
+        // No text to select
+        clearSelection();
+      }
     }
   } else if (fieldFocused >= 0) {
     // Unfocus when clicking outside
     fieldFocused = -1;
+    // Clear any text selection
+    clearSelection();
     // Start animation by setting lastFrameTime
     lastFrameTime = millis();
   }
+}
+
+function mouseDragged() {
+  // Continue selection if we're in selection mode
+  if (isSelecting && selectionField >= 0 && fieldValues[selectionField].length > 0) {
+    const textX = getTextX(selectionField);
+    selectionEnd = getCursorPosFromX(selectionField, textX, mouseX);
+    redraw();
+    return false; // Prevent default behavior
+  }
+  return true;
+}
+
+function mouseReleased() {
+  // End the selection process
+  isSelecting = false;
+  
+  // Normalize selection (make sure start is less than end)
+  if (selectionField >= 0 && selectionStart > selectionEnd) {
+    const temp = selectionStart;
+    selectionStart = selectionEnd;
+    selectionEnd = temp;
+  }
+  
+  return false;
+}
+
+// Helper function to get cursor position from X coordinate
+function getCursorPosFromX(fieldIndex, textX, mouseX) {
+  const text = fieldValues[fieldIndex];
+  // Handle empty text case
+  if (!text) return 0;
+  
+  // Try to find the closest character position
+  let closestPos = 0;
+  let closestDist = Number.MAX_VALUE;
+  
+  // Check each character position
+  for (let i = 0; i <= text.length; i++) {
+    const subText = text.substring(0, i);
+    const subWidth = textWidth(subText);
+    const xPos = textX + subWidth;
+    const dist = Math.abs(mouseX - xPos);
+    
+    if (dist < closestDist) {
+      closestDist = dist;
+      closestPos = i;
+    }
+  }
+  
+  return closestPos;
+}
+
+// Helper function to get the X coordinate of the text in a field
+function getTextX(fieldIndex) {
+  const fieldWidth = params.screenSize;
+  const fieldX = width / 2 - fieldWidth / 2;
+  return fieldX + params.fieldPadding + (fieldParams[fieldIndex].showLeadingIcon ? 30 : 0);
+}
+
+// Helper function to clear text selection
+function clearSelection() {
+  selectionStart = -1;
+  selectionEnd = -1;
+  selectionField = -1;
+  isSelecting = false;
 }
 
 function keyTyped() {
@@ -461,13 +587,23 @@ function keyTyped() {
   if (fieldFocused >= 0 && fieldParams[fieldFocused].state !== 'Disabled') {
     // Handle backspace (special case)
     if (keyCode === BACKSPACE) {
-      fieldValues[fieldFocused] = fieldValues[fieldFocused].slice(0, -1);
+      if (selectionField === fieldFocused && selectionStart !== selectionEnd) {
+        // Delete selected text
+        deleteSelectedText();
+      } else {
+        fieldValues[fieldFocused] = fieldValues[fieldFocused].slice(0, -1);
+      }
       redraw();
       return false;
     }
     
-    // Add the typed character to the field value
-    fieldValues[fieldFocused] += key;
+    // If there's selected text, replace it with the typed character
+    if (selectionField === fieldFocused && selectionStart !== selectionEnd) {
+      replaceSelectedText(key);
+    } else {
+      // Add the typed character to the field value
+      fieldValues[fieldFocused] += key;
+    }
     redraw();
     return false; // Prevent default behavior
   }
@@ -475,15 +611,127 @@ function keyTyped() {
 }
 
 function keyPressed() {
-  // Handle backspace
-  if (keyCode === BACKSPACE && fieldFocused >= 0 && fieldParams[fieldFocused].state !== 'Disabled') {
-    if (fieldValues[fieldFocused].length > 0) {
-      fieldValues[fieldFocused] = fieldValues[fieldFocused].slice(0, -1);
+  // Only handle keyboard shortcuts when a field is focused
+  if (fieldFocused >= 0 && fieldParams[fieldFocused].state !== 'Disabled') {
+    // Handle backspace
+    if (keyCode === BACKSPACE) {
+      if (selectionField === fieldFocused && selectionStart !== selectionEnd) {
+        // Delete selected text
+        deleteSelectedText();
+      } else if (fieldValues[fieldFocused].length > 0) {
+        fieldValues[fieldFocused] = fieldValues[fieldFocused].slice(0, -1);
+      }
       redraw();
+      return false; // Prevent default behavior
     }
-    return false; // Prevent default behavior
+    
+    // Handle Ctrl+A (Select All)
+    if (keyCode === 65 && keyIsDown(CONTROL)) {
+      if (fieldValues[fieldFocused].length > 0) {
+        selectionField = fieldFocused;
+        selectionStart = 0;
+        selectionEnd = fieldValues[fieldFocused].length;
+        redraw();
+      }
+      return false;
+    }
+    
+    // Handle Ctrl+C (Copy)
+    if (keyCode === 67 && keyIsDown(CONTROL)) {
+      if (selectionField === fieldFocused && selectionStart !== selectionEnd) {
+        const start = Math.min(selectionStart, selectionEnd);
+        const end = Math.max(selectionStart, selectionEnd);
+        const selectedText = fieldValues[fieldFocused].substring(start, end);
+        
+        // Use the browser's clipboard API if available
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(selectedText).catch(err => {
+            console.error('Could not copy text: ', err);
+          });
+        }
+      }
+      return false;
+    }
+    
+    // Handle Ctrl+X (Cut)
+    if (keyCode === 88 && keyIsDown(CONTROL)) {
+      if (selectionField === fieldFocused && selectionStart !== selectionEnd) {
+        const start = Math.min(selectionStart, selectionEnd);
+        const end = Math.max(selectionStart, selectionEnd);
+        const selectedText = fieldValues[fieldFocused].substring(start, end);
+        
+        // Use the browser's clipboard API if available
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(selectedText).catch(err => {
+            console.error('Could not copy text: ', err);
+          });
+        }
+        
+        // Delete the selected text
+        deleteSelectedText();
+        redraw();
+      }
+      return false;
+    }
+    
+    // Handle Ctrl+V (Paste)
+    if (keyCode === 86 && keyIsDown(CONTROL)) {
+      // Use the browser's clipboard API if available
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.readText()
+          .then(text => {
+            // If there's a selection, replace it
+            if (selectionField === fieldFocused && selectionStart !== selectionEnd) {
+              replaceSelectedText(text);
+            } else {
+              // Otherwise insert at current position (end of text)
+              fieldValues[fieldFocused] += text;
+            }
+            redraw();
+          })
+          .catch(err => {
+            console.error('Could not paste text: ', err);
+          });
+      }
+      return false;
+    }
   }
   return true;
+}
+
+// Helper function to delete selected text
+function deleteSelectedText() {
+  if (selectionField >= 0 && selectionStart !== selectionEnd) {
+    const start = Math.min(selectionStart, selectionEnd);
+    const end = Math.max(selectionStart, selectionEnd);
+    
+    // Remove the selected portion of the text
+    fieldValues[selectionField] = 
+      fieldValues[selectionField].substring(0, start) + 
+      fieldValues[selectionField].substring(end);
+    
+    // Reset cursor position to the start of the selection
+    selectionStart = start;
+    selectionEnd = start;
+  }
+}
+
+// Helper function to replace selected text with new text
+function replaceSelectedText(newText) {
+  if (selectionField >= 0 && selectionStart !== selectionEnd) {
+    const start = Math.min(selectionStart, selectionEnd);
+    const end = Math.max(selectionStart, selectionEnd);
+    
+    // Replace the selected portion of the text
+    fieldValues[selectionField] = 
+      fieldValues[selectionField].substring(0, start) + 
+      newText +
+      fieldValues[selectionField].substring(end);
+    
+    // Update cursor position to after the new text
+    selectionStart = start + newText.length;
+    selectionEnd = selectionStart;
+  }
 }
 
 function windowResized() {

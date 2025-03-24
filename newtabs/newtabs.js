@@ -11,7 +11,7 @@ let params = {
   activeTab: 0,
   
   // Screen size
-  screenSize: 620,
+  screenSize: 500, // Changed from 350 to 500
   
   // Styling
   cornerRadius: 16,
@@ -45,7 +45,6 @@ let iconElements = [];
 const colorPalette = [
   "#6750A4", // Purple (original)
   "#B3261E", // Red
-  "#F2B8B5", // Light Red
   "#E94235", // Google Red
   "#FF8A65", // Orange
   "#FB8C00", // Dark Orange
@@ -57,6 +56,46 @@ const colorPalette = [
   "#4285F4"  // Google Blue
 ];
 
+// Create an array to store tab sets configuration
+const tabSets = [];
+
+// Generate 10 random tab set configurations
+function generateTabSets() {
+  // Clear previous configurations
+  tabSets.length = 0;
+  
+  // Take the first 10 colors from the palette
+  // We'll create one tab set per color
+  const usedColors = colorPalette.slice(0, 10);
+  
+  for (let i = 0; i < 10; i++) {
+    // Random number of tabs (2-4)
+    const tabCount = Math.floor(Math.random() * 3) + 2;
+    
+    // Random active tab (ensuring it's within the valid range)
+    const activeTab = Math.floor(Math.random() * tabCount);
+    
+    // Calculate hover color based on active color
+    const activeColor = color(usedColors[i]);
+    const r = red(activeColor);
+    const g = green(activeColor);
+    const b = blue(activeColor);
+    const hoverColor = color(
+      r + (255 - r) * 0.85,
+      g + (255 - g) * 0.85,
+      b + (255 - b) * 0.85
+    ).toString('#rrggbb');
+    
+    // Add to tabSets array
+    tabSets.push({
+      tabCount: tabCount,
+      activeTab: activeTab,
+      activeTabBackgroundColor: usedColors[i],
+      hoverTabBackgroundColor: hoverColor
+    });
+  }
+}
+
 // Select a random color on load
 let randomColorIndex = Math.floor(Math.random() * colorPalette.length);
 
@@ -64,19 +103,8 @@ function setup() {
   createCanvas(windowWidth, windowHeight);
   textFont('Roboto, sans-serif');
   
-  // Set the active tab color to a random color from the palette
-  params.activeTabBackgroundColor = colorPalette[randomColorIndex];
-  
-  // Calculate a matching hover color (lighter version of the active color)
-  const activeColor = color(params.activeTabBackgroundColor);
-  const r = red(activeColor);
-  const g = green(activeColor);
-  const b = blue(activeColor);
-  params.hoverTabBackgroundColor = color(
-    r + (255 - r) * 0.85,
-    g + (255 - g) * 0.85,
-    b + (255 - b) * 0.85
-  ).toString('#rrggbb');
+  // Generate tab sets with random configurations
+  generateTabSets();
   
   // Add Material Icons stylesheet to the document
   const link = document.createElement('link');
@@ -84,18 +112,22 @@ function setup() {
   link.href = 'https://fonts.googleapis.com/icon?family=Material+Icons';
   document.head.appendChild(link);
   
-  // Create icon elements
-  for (let i = 0; i < tabIcons.length; i++) {
-    const icon = document.createElement('span');
-    icon.className = 'material-icons';
-    icon.textContent = tabIcons[i];
-    icon.style.position = 'absolute';
-    icon.style.display = 'none';
-    icon.style.color = params.activeTabTextColor;
-    icon.style.userSelect = 'none';
-    icon.style.pointerEvents = 'none';
-    document.body.appendChild(icon);
-    iconElements.push(icon);
+  // Create icon elements (we'll need more now - 4 icons per tab set)
+  for (let i = 0; i < tabSets.length; i++) {
+    const tabSetIcons = [];
+    for (let j = 0; j < tabIcons.length; j++) {
+      const icon = document.createElement('span');
+      icon.className = 'material-icons';
+      icon.textContent = tabIcons[j];
+      icon.style.position = 'absolute';
+      icon.style.display = 'none';
+      icon.style.color = params.activeTabTextColor;
+      icon.style.userSelect = 'none';
+      icon.style.pointerEvents = 'none';
+      document.body.appendChild(icon);
+      tabSetIcons.push(icon);
+    }
+    iconElements.push(tabSetIcons);
   }
   
   // Setup GUI - single panel with all controls
@@ -103,160 +135,131 @@ function setup() {
   gui.title("Controls");
   
   // Tab content
-  gui.add(params, 'tabCount', 2, 4, 1).name('Number of Tabs').onChange(redraw);
-  gui.add(params, 'tab1Title').name('Tab 1 Title').onChange(redraw);
-  gui.add(params, 'tab2Title').name('Tab 2 Title').onChange(redraw);
-  gui.add(params, 'tab3Title').name('Tab 3 Title').onChange(redraw);
-  gui.add(params, 'tab4Title').name('Tab 4 Title').onChange(redraw);
-  
-  // Add a spacer
-  const spacer1 = document.createElement('div');
-  spacer1.style.height = '10px';
-  gui.domElement.appendChild(spacer1);
-  
-  // Screen size
-  gui.add(params, 'screenSize', 320, 1200, 1).name('Screen Size (dp)').onChange(redraw);
-  
-  // Styling
+  gui.add(params, 'screenSize', 320, 800, 1).name('Tab Width (dp)').onChange(redraw);
   gui.add(params, 'cornerRadius', 0, 30, 1).name('Corner Radius').onChange(redraw);
   gui.add(params, 'fontSize', 12, 24, 1).name('Font Size').onChange(redraw);
-  gui.add(params, 'textVerticalPosition', -20, 20, 1).name('Text Y Position').onChange(redraw);
-  gui.add(params, 'activeTab', 0, 3, 1).name('Active Tab').onChange(redraw);
-  gui.add(params, 'showIcons').name('Add Icons').onChange(redraw);
-  
-  // Add another spacer
-  const spacer2 = document.createElement('div');
-  spacer2.style.height = '10px';
-  gui.domElement.appendChild(spacer2);
-  
-  // Colors
-  gui.addColor(params, 'backgroundColor').name('Background').onChange(redraw);
-  gui.addColor(params, 'tabBackgroundColor').name('Inactive Tab BG').onChange(redraw);
-  gui.addColor(params, 'activeTabBackgroundColor').name('Active Tab BG').onChange(redraw);
-  gui.addColor(params, 'hoverTabBackgroundColor').name('Hover Tab BG').onChange(redraw);
-  gui.addColor(params, 'tabTextColor').name('Inactive Tab Text').onChange(redraw);
-  gui.addColor(params, 'activeTabTextColor').name('Active Tab Text').onChange(redraw);
+  gui.add(params, 'showIcons').name('Show Icons').onChange(redraw);
   
   // Export
   gui.add(params, 'export').name('Export as PNG');
   
-  // Enable loop for hover effects
-  loop();
-  
   // Apply theme
   applyTheme(getCurrentTheme());
+  
+  // No need for loop() since we're just displaying static tab sets
+  noLoop();
+  redraw();
 }
 
 function draw() {
   // Clear canvas and set background
   background(params.backgroundColor);
   
-  // Calculate tab dimensions
   const tabTitles = [
     params.tab1Title,
     params.tab2Title,
     params.tab3Title,
     params.tab4Title
-  ].slice(0, params.tabCount);
+  ];
   
-  // Set tabs width to exactly match the screen size
+  // Set tabs width based on params
   const tabsWidth = params.screenSize;
   const tabsHeight = params.fontSize * 3;
+  
+  // Calculate spacing between tab sets
+  const spacingBetweenSets = tabsHeight * 0.5;
+  
+  // Calculate total height needed for all tab sets
+  const totalHeight = (tabsHeight + spacingBetweenSets) * tabSets.length - spacingBetweenSets;
+  
+  // Start Y position (centered vertically)
+  let startY = (height - totalHeight) / 2;
+  
+  // Position X (centered horizontally)
   const tabsX = width / 2 - tabsWidth / 2;
-  const tabsY = height / 2 - tabsHeight / 2;
   
-  // Calculate tab widths
-  const tabWidth = tabsWidth / params.tabCount;
-  
-  // Check which tab the mouse is over
-  mouseOverTab = -1;
-  if (mouseY >= tabsY && mouseY <= tabsY + tabsHeight) {
-    for (let i = 0; i < params.tabCount; i++) {
+  // Draw each tab set
+  for (let setIndex = 0; setIndex < tabSets.length; setIndex++) {
+    const tabSet = tabSets[setIndex];
+    const tabsY = startY;
+    
+    // Calculate tab widths for this set
+    const tabWidth = tabsWidth / tabSet.tabCount;
+    
+    // Draw tabs for this set
+    textSize(params.fontSize);
+    textAlign(CENTER, CENTER);
+    
+    // Hide all icons for this set first
+    if (iconElements[setIndex]) {
+      iconElements[setIndex].forEach(icon => {
+        icon.style.display = 'none';
+      });
+    }
+    
+    for (let i = 0; i < tabSet.tabCount; i++) {
       const tabX = tabsX + i * tabWidth;
-      if (mouseX >= tabX && mouseX <= tabX + tabWidth) {
-        mouseOverTab = i;
-        // Change cursor to pointer when over a tab
-        cursor(HAND);
-        break;
+      const isActive = i === tabSet.activeTab;
+      
+      // Tab background
+      if (isActive) {
+        fill(tabSet.activeTabBackgroundColor);
+      } else {
+        fill(params.tabBackgroundColor);
+      }
+      noStroke();
+      
+      // Draw rounded rectangles for tabs with proper corner rounding
+      if (isActive) {
+        // Active tab - use rounded rectangle for all corners
+        drawRoundedRect(tabX, tabsY, tabWidth, tabsHeight, params.cornerRadius);
+      } else {
+        // Inactive tabs - no rounded corners
+        rect(tabX, tabsY, tabWidth, tabsHeight);
+      }
+      
+      // Tab text
+      fill(isActive ? params.activeTabTextColor : params.tabTextColor);
+      
+      // Make sure to use the appropriate title for this tab
+      const tabTitle = tabTitles[i] || `Tab ${i+1}`;
+      
+      // If showing icons and this is the active tab
+      if (params.showIcons && isActive && iconElements[setIndex] && iconElements[setIndex][i]) {
+        // Calculate positions
+        const iconSize = params.fontSize * 1.2;
+        const spacing = params.fontSize * 0.5;
+        const textW = textWidth(tabTitle);
+        const totalWidth = iconSize + spacing + textW;
+        const startX = tabX + tabWidth / 2 - totalWidth / 2;
+        
+        // Position and show the icon
+        const icon = iconElements[setIndex][i];
+        icon.style.display = 'block';
+        icon.style.fontSize = `${iconSize}px`;
+        icon.style.left = `${startX}px`;
+        
+        // Adjust icon vertical position to align with text
+        icon.style.top = `${tabsY + tabsHeight/2 - iconSize/2 + params.textVerticalPosition - 1}px`;
+        icon.style.color = params.activeTabTextColor;
+        
+        // Draw the text with vertical position adjustment
+        text(tabTitle, startX + iconSize + spacing + textW/2, tabsY + tabsHeight / 2 + params.textVerticalPosition);
+      } else {
+        // Just draw the text centered with vertical position adjustment
+        text(tabTitle, tabX + tabWidth / 2, tabsY + tabsHeight / 2 + params.textVerticalPosition);
       }
     }
-  }
-  
-  if (mouseOverTab === -1) {
-    // Reset cursor when not over a tab
-    cursor(AUTO);
-  }
-  
-  // Draw tabs
-  textSize(params.fontSize);
-  textAlign(CENTER, CENTER);
-  
-  // Hide all icons first
-  iconElements.forEach(icon => {
-    icon.style.display = 'none';
-  });
-  
-  for (let i = 0; i < params.tabCount; i++) {
-    const tabX = tabsX + i * tabWidth;
-    const isActive = i === params.activeTab;
-    const isHovered = i === mouseOverTab && !isActive;
     
-    // Tab background
-    if (isActive) {
-      fill(params.activeTabBackgroundColor);
-    } else if (isHovered) {
-      fill(params.hoverTabBackgroundColor);
-    } else {
-      fill(params.tabBackgroundColor);
-    }
-    noStroke();
-    
-    // Draw rounded rectangles for tabs with proper corner rounding
-    if (isActive) {
-      // Active tab - use rounded rectangle for all corners
-      drawRoundedRect(tabX, tabsY, tabWidth, tabsHeight, params.cornerRadius);
-    } else {
-      // Inactive tabs - no rounded corners
-      rect(tabX, tabsY, tabWidth, tabsHeight);
-    }
-    
-    // Tab text
-    fill(isActive ? params.activeTabTextColor : params.tabTextColor);
-    
-    // If showing icons and this is the active tab
-    if (params.showIcons && isActive) {
-      // Calculate positions
-      const iconSize = params.fontSize * 1.2;
-      const spacing = params.fontSize * 0.5;
-      const textW = textWidth(tabTitles[i]);
-      const totalWidth = iconSize + spacing + textW;
-      const startX = tabX + tabWidth / 2 - totalWidth / 2;
-      
-      // Position and show the icon
-      const icon = iconElements[i];
-      icon.style.display = 'block';
-      icon.style.fontSize = `${iconSize}px`;
-      icon.style.left = `${startX}px`;
-      
-      // Adjust icon vertical position to align with text
-      // The icon needs different positioning than the text to appear aligned
-      icon.style.top = `${tabsY + tabsHeight/2 - iconSize/2 + params.textVerticalPosition - 1}px`;
-      icon.style.color = params.activeTabTextColor;
-      
-      // Draw the text with vertical position adjustment
-      text(tabTitles[i], startX + iconSize + spacing + textW/2, tabsY + tabsHeight / 2 + params.textVerticalPosition);
-    } else {
-      // Just draw the text centered with vertical position adjustment
-      text(tabTitles[i], tabX + tabWidth / 2, tabsY + tabsHeight / 2 + params.textVerticalPosition);
-    }
+    // Move to the next position for the next tab set
+    startY += tabsHeight + spacingBetweenSets;
   }
 }
 
+// We no longer need mousePressed for interaction since we're just displaying
+// static tab sets, but keep it here for future reference
 function mousePressed() {
-  if (mouseOverTab !== -1) {
-    params.activeTab = mouseOverTab;
-    redraw();
-  }
+  // Disabled interaction
 }
 
 // Helper function to draw a rounded rectangle with different top and bottom radii
@@ -354,11 +357,15 @@ window.addEventListener('storage', function(e) {
 // Clean up when the sketch is removed
 function remove() {
   // Remove icon elements
-  iconElements.forEach(icon => {
-    if (icon && icon.parentNode) {
-      icon.parentNode.removeChild(icon);
+  for (let i = 0; i < iconElements.length; i++) {
+    if (iconElements[i]) {
+      iconElements[i].forEach(icon => {
+        if (icon && icon.parentNode) {
+          icon.parentNode.removeChild(icon);
+        }
+      });
     }
-  });
+  }
   iconElements = [];
   
   // Call the original remove function
