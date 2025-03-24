@@ -29,10 +29,7 @@ let params = {
   fieldBackgroundColor: "#FFFFFF", // White
   textColor: "#1C1B1F", // Near black
   labelColor: "#49454F", // Dark gray
-  activeColor: "#1F6E43", // Dark green from image
-  errorColor: "#B3261E", // Error red
   disabledColor: "#1C1B1F", // Disabled color with opacity
-  helperTextColor: "#49454F", // Dark gray
   
   // Leading icon
   showLeadingIcon: true,
@@ -48,25 +45,18 @@ let params = {
   }
 };
 
-// Color palette from the image
+// Color palette - 10 colors matching the radio buttons example
 const colorPalette = [
-  "#1F6E43", // Dark green
-  "#2D9D6C", // Medium green
-  "#4DB38A", // Light green
-  "#8FD65B", // Lime green
-  "#D9E64A", // Yellow-green
-  
-  "#0A3B6D", // Dark blue
-  "#2D6FC1", // Medium blue
-  "#4A9FE6", // Light blue
-  "#6BCBF5", // Sky blue
-  "#A8E7F0", // Light cyan
-  
-  "#6B4D1E", // Brown
-  "#C42E1B", // Red
-  "#E84C30", // Orange-red
-  "#F7954A", // Orange
-  "#FFCF54"  // Yellow
+  "#E53935", // Red
+  "#FF5722", // Deep Orange
+  "#FF9800", // Orange
+  "#FFC107", // Amber
+  "#FFEB3B", // Yellow
+  "#8BC34A", // Light Green
+  "#4CAF50", // Green
+  "#00ACC1", // Cyan
+  "#2196F3", // Blue
+  "#673AB7"  // Deep Purple
 ];
 
 // Material Icons for leading and trailing
@@ -76,51 +66,83 @@ const iconOptions = [
 ];
 
 // Track mouse position and interaction state
-let mouseOverField = false;
-let mouseOverTrailingIcon = false;
-let fieldFocused = false;
-let currentRadius = 100; // Track the current animated radius
+let mouseOverField = -1;
+let mouseOverTrailingIcon = -1;
+let fieldFocused = -1;
+let currentRadiuses = Array(10).fill(100); // Track the current animated radius for each field - start with pill shape
 let lastFrameTime = 0; // For animation timing
 let cursorVisible = true; // For cursor blinking
 let cursorBlinkTime = 0; // Track time for cursor blinking
 
-// Select a random color on load
-let randomColorIndex = Math.floor(Math.random() * colorPalette.length);
+// Field values
+let fieldValues = Array(10).fill("");
 
-// Icon elements
-let leadingIconElement;
-let trailingIconElement;
+// Field-specific parameters
+let fieldParams = [];
+
+// Icon elements array
+let leadingIconElements = [];
+let trailingIconElements = [];
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textFont('Roboto, sans-serif');
   
-  // Set the active color to a random color from the palette
-  params.activeColor = colorPalette[randomColorIndex];
+  // Initialize field-specific parameters with randomized values
+  for (let i = 0; i < 10; i++) {
+    fieldParams.push({
+      showLabel: Math.random() >= 0.3,
+      showHelperText: Math.random() >= 0.5,
+      showLeadingIcon: Math.random() >= 0.5,
+      showTrailingIcon: Math.random() >= 0.5,
+      cornerRadius: Math.random() >= 0.3 ? 100 : Math.floor(Math.random() * 16) + 4, // 70% pill-shaped, 30% random radius
+      targetRadius: Math.floor(Math.random() * 12) + 4, // Random target radius between 4-16
+      state: Math.random() >= 0.8 ? "Enabled" : (Math.random() >= 0.6 ? "Error" : "Disabled"), // Reduce disabled fields
+      leadingIcon: iconOptions[Math.floor(Math.random() * iconOptions.length)],
+      trailingIcon: iconOptions[Math.floor(Math.random() * iconOptions.length)],
+      fontSize: Math.floor(Math.random() * 6) + 14 // Random font size between 14-20
+    });
+    
+    // Set initial text values for some fields
+    if (Math.random() >= 0.7) {
+      fieldValues[i] = "Sample " + (i + 1);
+    }
+  }
   
-  // Randomly set the visibility of label, helper text, and leading icon on reload
-  params.showLabel = Math.random() >= 0.5;
-  params.showHelperText = Math.random() >= 0.5;
-  params.showLeadingIcon = Math.random() >= 0.5;
+  // Ensure at least 7 fields are enabled
+  let enabledCount = fieldParams.filter(param => param.state === "Enabled" || param.state === "Error").length;
+  if (enabledCount < 7) {
+    // Convert some disabled fields to enabled
+    for (let i = 0; i < fieldParams.length && enabledCount < 7; i++) {
+      if (fieldParams[i].state === "Disabled") {
+        fieldParams[i].state = "Enabled";
+        enabledCount++;
+      }
+    }
+  }
   
-  // Create icon elements
-  leadingIconElement = document.createElement('span');
-  leadingIconElement.className = 'material-icons';
-  leadingIconElement.textContent = params.leadingIcon;
-  leadingIconElement.style.position = 'absolute';
-  leadingIconElement.style.display = 'none';
-  leadingIconElement.style.userSelect = 'none';
-  leadingIconElement.style.pointerEvents = 'none';
-  document.body.appendChild(leadingIconElement);
-  
-  trailingIconElement = document.createElement('span');
-  trailingIconElement.className = 'material-icons';
-  trailingIconElement.textContent = params.trailingIcon;
-  trailingIconElement.style.position = 'absolute';
-  trailingIconElement.style.display = 'none';
-  trailingIconElement.style.userSelect = 'none';
-  trailingIconElement.style.pointerEvents = 'none';
-  document.body.appendChild(trailingIconElement);
+  // Create icon elements for each field
+  for (let i = 0; i < 10; i++) {
+    let leadingIcon = document.createElement('span');
+    leadingIcon.className = 'material-icons';
+    leadingIcon.textContent = fieldParams[i].leadingIcon;
+    leadingIcon.style.position = 'absolute';
+    leadingIcon.style.display = 'none';
+    leadingIcon.style.userSelect = 'none';
+    leadingIcon.style.pointerEvents = 'none';
+    document.body.appendChild(leadingIcon);
+    leadingIconElements.push(leadingIcon);
+    
+    let trailingIcon = document.createElement('span');
+    trailingIcon.className = 'material-icons';
+    trailingIcon.textContent = fieldParams[i].trailingIcon;
+    trailingIcon.style.position = 'absolute';
+    trailingIcon.style.display = 'none';
+    trailingIcon.style.userSelect = 'none';
+    trailingIcon.style.pointerEvents = 'none';
+    document.body.appendChild(trailingIcon);
+    trailingIconElements.push(trailingIcon);
+  }
   
   // Setup GUI - single panel with all controls
   gui = new lil.GUI();
@@ -130,24 +152,22 @@ function setup() {
   gui.add(params, 'label').name('Label Text').onChange(redraw);
   gui.add(params, 'showLabel').name('Show Label').onChange(redraw);
   gui.add(params, 'placeholder').name('Placeholder').onChange(redraw);
-  gui.add(params, 'value').name('Input Value').onChange(redraw);
   gui.add(params, 'helperText').name('Helper Text').onChange(redraw);
   gui.add(params, 'showHelperText').name('Show Helper Text').onChange(redraw);
   
   // Field state
   gui.add(params, 'state', ['Enabled', 'Focused', 'Error', 'Disabled']).name('Field State').onChange(function() {
-    fieldFocused = params.state === 'Focused';
+    fieldFocused = params.state === 'Focused' ? 0 : -1;
     redraw();
   });
   
   // Add a spacer
   addSpacer(gui, 10);
   
-  // Screen size
-  gui.add(params, 'screenSize', 320, 1200, 1).name('Screen Size (dp)').onChange(redraw);
-  
-  // Styling
-  gui.add(params, 'cornerRadius', 0, 20, 1).name('Corner Radius').onChange(redraw);
+  // Screen size and styling
+  gui.add(params, 'screenSize', 320, 412, 1).name('Field Width').onChange(redraw);
+  gui.add(params, 'cornerRadius', 0, 100, 1).name('Corner Radius').onChange(redraw);
+  gui.add(params, 'targetRadius', 0, 20, 1).name('Target Radius').onChange(redraw);
   gui.add(params, 'fontSize', 12, 24, 1).name('Input Font Size').onChange(redraw);
   gui.add(params, 'labelSize', 10, 18, 1).name('Label Font Size').onChange(redraw);
   gui.add(params, 'helperTextSize', 10, 18, 1).name('Helper Text Size').onChange(redraw);
@@ -156,7 +176,7 @@ function setup() {
   // Add a spacer
   addSpacer(gui, 10);
   
-  // Icons - now in main panel
+  // Icons
   gui.add(params, 'showLeadingIcon').name('Show Leading Icon').onChange(redraw);
   gui.add(params, 'leadingIcon', iconOptions).name('Leading Icon').onChange(redraw);
   gui.add(params, 'showTrailingIcon').name('Show Trailing Icon').onChange(redraw);
@@ -165,15 +185,9 @@ function setup() {
   // Add a spacer
   addSpacer(gui, 10);
   
-  // Colors - now in main panel
+  // Background color only
   gui.addColor(params, 'backgroundColor').name('Background').onChange(redraw);
   gui.addColor(params, 'fieldBackgroundColor').name('Field Background').onChange(redraw);
-  gui.addColor(params, 'textColor').name('Text Color').onChange(redraw);
-  gui.addColor(params, 'labelColor').name('Label Color').onChange(redraw);
-  gui.addColor(params, 'activeColor').name('Active Color').onChange(redraw);
-  gui.addColor(params, 'errorColor').name('Error Color').onChange(redraw);
-  gui.addColor(params, 'disabledColor').name('Disabled Color').onChange(redraw);
-  gui.addColor(params, 'helperTextColor').name('Helper Text').onChange(redraw);
   
   // Add a spacer
   addSpacer(gui, 10);
@@ -201,72 +215,113 @@ function draw() {
   lastFrameTime = currentTime;
   
   // Blink cursor every 530ms (standard cursor blink rate)
-  if (fieldFocused && currentTime - cursorBlinkTime > 530) {
+  if (fieldFocused >= 0 && currentTime - cursorBlinkTime > 530) {
     cursorVisible = !cursorVisible;
     cursorBlinkTime = currentTime;
   }
   
-  // Animate corner radius
-  if (fieldFocused || params.state === 'Focused') {
-    // Animate towards target radius
-    currentRadius = lerp(currentRadius, params.targetRadius, 0.1);
-  } else {
-    // Animate back to pill shape
-    currentRadius = lerp(currentRadius, params.cornerRadius, 0.1);
+  // Animate corner radius for all fields
+  for (let i = 0; i < 10; i++) {
+    if (fieldFocused === i) {
+      // Animate towards target radius when focused
+      currentRadiuses[i] = lerp(currentRadiuses[i], fieldParams[i].targetRadius, 0.1);
+    } else {
+      // Animate back to default radius when not focused
+      currentRadiuses[i] = lerp(currentRadiuses[i], fieldParams[i].cornerRadius, 0.1);
+    }
   }
   
   // Clear canvas and set background
   background(params.backgroundColor);
   
+  // Reset mouse over states
+  mouseOverField = -1;
+  mouseOverTrailingIcon = -1;
+  
+  // Calculate the total height needed for all text fields
+  const fieldHeight = params.fontSize * 3.5;
+  const totalHeight = 10 * (fieldHeight + 40); // 40px spacing between fields
+  
+  // Calculate starting Y position to center all fields vertically
+  const startY = (height - totalHeight) / 2;
+  
+  // Draw all 10 text fields
+  for (let i = 0; i < 10; i++) {
+    const activeColor = colorPalette[i];
+    const fieldY = startY + i * (fieldHeight + 40);
+    
+    drawTextField(i, fieldY, activeColor);
+  }
+  
+  // Update cursor
+  cursor(mouseOverTrailingIcon >= 0 ? HAND : (mouseOverField >= 0 ? TEXT : AUTO));
+}
+
+function drawTextField(index, fieldY, activeColor) {
   // Calculate text field dimensions
   const fieldWidth = params.screenSize;
   const fieldHeight = params.fontSize * 3.5;
   const fieldX = width / 2 - fieldWidth / 2;
-  const fieldY = height / 2 - fieldHeight / 2;
   
-  // Check if mouse is over the field
-  mouseOverField = mouseX >= fieldX && mouseX <= fieldX + fieldWidth &&
-                   mouseY >= fieldY && mouseY <= fieldY + fieldHeight;
+  // Check if mouse is over this field
+  const isMouseOver = mouseX >= fieldX && mouseX <= fieldX + fieldWidth &&
+                      mouseY >= fieldY && mouseY <= fieldY + fieldHeight;
+  
+  if (isMouseOver) {
+    mouseOverField = index;
+  }
   
   // Check if mouse is over the trailing icon
   const trailingIconX = fieldX + fieldWidth - params.fieldPadding - 12; // Center of icon
   const trailingIconY = fieldY + fieldHeight / 2;
   const iconRadius = 12; // Half of 24dp
-  mouseOverTrailingIcon = params.showTrailingIcon && 
+  const isMouseOverTrailing = fieldParams[index].showTrailingIcon && 
                           dist(mouseX, mouseY, trailingIconX, trailingIconY) < iconRadius;
   
-  // Update cursor
-  cursor(mouseOverTrailingIcon ? HAND : (mouseOverField ? TEXT : AUTO));
+  if (isMouseOverTrailing) {
+    mouseOverTrailingIcon = index;
+  }
   
   // Determine colors based on state
   let activeLabelColor;
   
-  switch(params.state) {
-    case 'Focused':
-      activeLabelColor = params.activeColor;
-      break;
-    case 'Error':
-      activeLabelColor = params.errorColor;
-      break;
-    case 'Disabled':
-      activeLabelColor = color(params.disabledColor);
-      activeLabelColor.setAlpha(60);
-      break;
-    default: // Enabled
-      activeLabelColor = params.labelColor;
+  if (fieldFocused === index) {
+    activeLabelColor = activeColor;
+  } else {
+    switch(fieldParams[index].state) {
+      case 'Error':
+        activeLabelColor = "#B3261E"; // Error red
+        break;
+      case 'Disabled':
+        activeLabelColor = color(params.disabledColor);
+        activeLabelColor.setAlpha(60);
+        break;
+      default: // Enabled
+        activeLabelColor = params.labelColor;
+    }
   }
   
   // Draw text field background
-  fill(params.state === 'Disabled' ? color(params.fieldBackgroundColor).levels.concat(38) : params.fieldBackgroundColor);
+  const isDisabled = fieldParams[index].state === 'Disabled';
+  fill(isDisabled ? color(params.fieldBackgroundColor).levels.concat(38) : params.fieldBackgroundColor);
   noStroke();
-  rect(fieldX, fieldY, fieldWidth, fieldHeight, currentRadius);
+  rect(fieldX, fieldY, fieldWidth, fieldHeight, currentRadiuses[index]);
+  
+  // Add a subtle stroke with the active color when field is focused
+  if (fieldFocused === index) {
+    stroke(activeColor);
+    strokeWeight(2);
+    noFill();
+    rect(fieldX, fieldY, fieldWidth, fieldHeight, currentRadiuses[index]);
+    noStroke();
+  }
   
   // Calculate text positions with padding
-  const textX = fieldX + params.fieldPadding + (params.showLeadingIcon ? 30 : 0); // 24dp icon + 6dp spacing
+  const textX = fieldX + params.fieldPadding + (fieldParams[index].showLeadingIcon ? 30 : 0); // 24dp icon + 6dp spacing
   
   // Adjust text Y position - center it when no label is shown
-  const textY = params.showLabel ? 
-    fieldY + fieldHeight / 2 + params.fontSize / 4 : 
+  const textY = fieldParams[index].showLabel ? 
+    fieldY + fieldHeight / 2 + fieldParams[index].fontSize / 4 : 
     fieldY + fieldHeight / 2;
     
   const labelX = textX;
@@ -276,39 +331,39 @@ function draw() {
   const helperTextY = fieldY + fieldHeight + params.fieldPadding;
   
   // Draw label if enabled
-  if (params.showLabel) {
+  if (fieldParams[index].showLabel) {
     noStroke();
-    fill(fieldFocused || params.value ? activeLabelColor : params.labelColor);
+    fill(fieldFocused === index || fieldValues[index] ? activeLabelColor : params.labelColor);
     textSize(params.labelSize);
     textAlign(LEFT, CENTER);
     text(params.label, labelX, labelY);
   }
   
   // Draw input text or placeholder
-  textSize(params.fontSize);
+  textSize(fieldParams[index].fontSize);
   textAlign(LEFT, CENTER);
-  if (params.value) {
-    fill(params.state === 'Disabled' ? color(params.textColor).levels.concat(38) : params.textColor);
-    text(params.value, textX, textY);
+  if (fieldValues[index]) {
+    fill(isDisabled ? color("#1C1B1F").levels.concat(38) : "#1C1B1F");
+    text(fieldValues[index], textX, textY);
     
     // Draw blinking cursor after text if field is focused
-    if (fieldFocused && cursorVisible) {
-      const valueWidth = textWidth(params.value);
-      stroke(params.activeColor);
+    if (fieldFocused === index && cursorVisible) {
+      const valueWidth = textWidth(fieldValues[index]);
+      stroke(activeColor);
       strokeWeight(2);
       // Adjust cursor height - increased by 25%
-      const cursorHeight = params.fontSize * 1.0; // Changed from 0.8 to 1.0 (25% increase)
+      const cursorHeight = fieldParams[index].fontSize * 1.0;
       line(textX + valueWidth + 2, textY - cursorHeight/2, textX + valueWidth + 2, textY + cursorHeight/2);
       noStroke();
     }
   } else {
-    if (fieldFocused) {
+    if (fieldFocused === index) {
       // Show blinking cursor at start position when empty
       if (cursorVisible) {
-        stroke(params.activeColor);
+        stroke(activeColor);
         strokeWeight(2);
         // Adjust cursor height - increased by 25%
-        const cursorHeight = params.fontSize * 1.0; // Changed from 0.8 to 1.0 (25% increase)
+        const cursorHeight = fieldParams[index].fontSize * 1.0;
         line(textX, textY - cursorHeight/2, textX, textY + cursorHeight/2);
         noStroke();
       }
@@ -320,98 +375,99 @@ function draw() {
   }
   
   // Draw helper text if enabled
-  if (params.showHelperText) {
+  if (fieldParams[index].showHelperText) {
     textSize(params.helperTextSize);
-    fill(params.state === 'Error' ? params.errorColor : params.helperTextColor);
+    fill(fieldParams[index].state === 'Error' ? "#B3261E" : params.labelColor);
     text(params.helperText, helperTextX, helperTextY);
   }
   
   // Position and show icons if needed
-  if (params.showLeadingIcon) {
+  if (fieldParams[index].showLeadingIcon) {
     const leadingIconX = fieldX + params.fieldPadding;
     const leadingIconY = fieldY + fieldHeight / 2 - 12; // Center 24dp icon
     
-    leadingIconElement.style.display = 'block';
-    leadingIconElement.textContent = params.leadingIcon;
-    leadingIconElement.style.fontSize = '24px'; // Fixed 24dp size
-    leadingIconElement.style.left = `${leadingIconX}px`;
-    leadingIconElement.style.top = `${leadingIconY}px`;
+    leadingIconElements[index].style.display = 'block';
+    leadingIconElements[index].textContent = fieldParams[index].leadingIcon;
+    leadingIconElements[index].style.fontSize = '24px'; // Fixed 24dp size
+    leadingIconElements[index].style.left = `${leadingIconX}px`;
+    leadingIconElements[index].style.top = `${leadingIconY}px`;
     
-    if (params.state === 'Disabled') {
-      leadingIconElement.style.opacity = '0.38';
+    if (isDisabled) {
+      leadingIconElements[index].style.opacity = '0.38';
     } else {
-      leadingIconElement.style.opacity = '1';
+      leadingIconElements[index].style.opacity = '1';
     }
     
-    leadingIconElement.style.color = params.labelColor;
+    leadingIconElements[index].style.color = fieldFocused === index ? activeColor : params.labelColor;
   } else {
-    leadingIconElement.style.display = 'none';
+    leadingIconElements[index].style.display = 'none';
   }
   
-  if (params.showTrailingIcon) {
+  if (fieldParams[index].showTrailingIcon) {
     const trailingIconX = fieldX + fieldWidth - params.fieldPadding - 24; // Position 24dp icon
     const trailingIconY = fieldY + fieldHeight / 2 - 12; // Center 24dp icon
     
-    trailingIconElement.style.display = 'block';
-    trailingIconElement.textContent = params.trailingIcon;
-    trailingIconElement.style.fontSize = '24px'; // Fixed 24dp size
-    trailingIconElement.style.left = `${trailingIconX}px`;
-    trailingIconElement.style.top = `${trailingIconY}px`;
+    trailingIconElements[index].style.display = 'block';
+    trailingIconElements[index].textContent = fieldParams[index].trailingIcon;
+    trailingIconElements[index].style.fontSize = '24px'; // Fixed 24dp size
+    trailingIconElements[index].style.left = `${trailingIconX}px`;
+    trailingIconElements[index].style.top = `${trailingIconY}px`;
     
-    if (params.state === 'Disabled') {
-      trailingIconElement.style.opacity = '0.38';
+    if (isDisabled) {
+      trailingIconElements[index].style.opacity = '0.38';
     } else {
-      trailingIconElement.style.opacity = '1';
+      trailingIconElements[index].style.opacity = '1';
     }
     
-    trailingIconElement.style.color = mouseOverTrailingIcon ? params.activeColor : params.labelColor;
+    trailingIconElements[index].style.color = mouseOverTrailingIcon === index ? activeColor : params.labelColor;
   } else {
-    trailingIconElement.style.display = 'none';
+    trailingIconElements[index].style.display = 'none';
   }
 }
 
 function mousePressed() {
-  if (mouseOverTrailingIcon && params.state !== 'Disabled') {
-    // Clear the field value when clicking the trailing icon (if it's a close icon)
-    if (params.trailingIcon === 'close') {
-      params.value = '';
-      redraw();
+  if (mouseOverTrailingIcon >= 0) {
+    // Check if field is not disabled before handling icon click
+    if (fieldParams[mouseOverTrailingIcon].state !== 'Disabled') {
+      // Clear the field value when clicking the trailing icon (if it's a close icon)
+      if (fieldParams[mouseOverTrailingIcon].trailingIcon === 'close') {
+        fieldValues[mouseOverTrailingIcon] = '';
+        redraw();
+      }
     }
-  } else if (mouseOverField && params.state !== 'Disabled') {
-    // Focus the field and clear the value
-    params.state = 'Focused';
-    fieldFocused = true;
-    params.value = ''; // Clear the input text
-    // Reset cursor blinking
-    cursorVisible = true;
-    cursorBlinkTime = millis();
-    // Start animation by setting lastFrameTime
-    lastFrameTime = millis();
-    // No need to call redraw() as we're using loop()
-  } else if (fieldFocused) {
-    // Unfocus when clicking outside
-    if (params.state === 'Focused') {
-      params.state = 'Enabled';
-      fieldFocused = false;
+  } else if (mouseOverField >= 0) {
+    // Only focus if the field is not disabled
+    if (fieldParams[mouseOverField].state !== 'Disabled') {
+      // Focus the field
+      fieldFocused = mouseOverField;
+      // Update the field state to visually indicate focus
+      fieldParams[mouseOverField].state = "Enabled";
+      // Reset cursor blinking
+      cursorVisible = true;
+      cursorBlinkTime = millis();
       // Start animation by setting lastFrameTime
       lastFrameTime = millis();
-      // No need to call redraw() as we're using loop()
     }
+  } else if (fieldFocused >= 0) {
+    // Unfocus when clicking outside
+    fieldFocused = -1;
+    // Start animation by setting lastFrameTime
+    lastFrameTime = millis();
   }
 }
 
 function keyTyped() {
-  // Only allow typing when the field is focused
-  if (fieldFocused && params.state !== 'Disabled') {
+  // Only allow typing when a field is focused
+  if (fieldFocused >= 0 && fieldParams[fieldFocused].state !== 'Disabled') {
     // Handle backspace (special case)
     if (keyCode === BACKSPACE) {
-      params.value = params.value.slice(0, -1);
+      fieldValues[fieldFocused] = fieldValues[fieldFocused].slice(0, -1);
       redraw();
       return false;
     }
     
     // Add the typed character to the field value
-    params.value += key;
+    fieldValues[fieldFocused] += key;
     redraw();
     return false; // Prevent default behavior
   }
@@ -420,9 +476,9 @@ function keyTyped() {
 
 function keyPressed() {
   // Handle backspace
-  if (keyCode === BACKSPACE && fieldFocused && params.state !== 'Disabled') {
-    if (params.value.length > 0) {
-      params.value = params.value.slice(0, -1);
+  if (keyCode === BACKSPACE && fieldFocused >= 0 && fieldParams[fieldFocused].state !== 'Disabled') {
+    if (fieldValues[fieldFocused].length > 0) {
+      fieldValues[fieldFocused] = fieldValues[fieldFocused].slice(0, -1);
       redraw();
     }
     return false; // Prevent default behavior
@@ -493,11 +549,16 @@ window.addEventListener('storage', function(e) {
 // Clean up when the sketch is removed
 function remove() {
   // Remove icon elements
-  if (leadingIconElement && leadingIconElement.parentNode) {
-    leadingIconElement.parentNode.removeChild(leadingIconElement);
+  for (let i = 0; i < leadingIconElements.length; i++) {
+    if (leadingIconElements[i] && leadingIconElements[i].parentNode) {
+      leadingIconElements[i].parentNode.removeChild(leadingIconElements[i]);
+    }
   }
-  if (trailingIconElement && trailingIconElement.parentNode) {
-    trailingIconElement.parentNode.removeChild(trailingIconElement);
+  
+  for (let i = 0; i < trailingIconElements.length; i++) {
+    if (trailingIconElements[i] && trailingIconElements[i].parentNode) {
+      trailingIconElements[i].parentNode.removeChild(trailingIconElements[i]);
+    }
   }
   
   // Call the original remove function
