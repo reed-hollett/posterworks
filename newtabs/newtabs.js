@@ -59,6 +59,38 @@ const colorPalette = [
 // Create an array to store tab sets configuration
 const tabSets = [];
 
+// Arrays of random tab name options for various categories
+const tabNameOptions = {
+  // Features/Summary tabs
+  features: ["Overview", "Features", "Summary", "Highlights", "Introduction", "About", "Info", "Basics"],
+  // Details/Specs tabs
+  details: ["Details", "Specifications", "Specs", "Properties", "Parameters", "Attributes", "Technical", "Data"],
+  // Content tabs
+  content: ["Content", "Gallery", "Photos", "Media", "Videos", "Files", "Documents", "Resources"],
+  // Action tabs
+  actions: ["Settings", "Options", "Configuration", "Preferences", "Tools", "Actions", "Controls", "Customize"]
+};
+
+// Function to get random tab names
+function getRandomTabNames(count) {
+  // We'll try to pick names from different categories when possible
+  const names = [];
+  const categories = Object.keys(tabNameOptions);
+  
+  for (let i = 0; i < count; i++) {
+    // Use a category appropriate for the tab index, or random if we have more tabs than categories
+    const categoryIndex = i < categories.length ? i : Math.floor(Math.random() * categories.length);
+    const category = categories[categoryIndex];
+    
+    // Pick a random name from the category
+    const optionsArray = tabNameOptions[category];
+    const randomIndex = Math.floor(Math.random() * optionsArray.length);
+    names.push(optionsArray[randomIndex]);
+  }
+  
+  return names;
+}
+
 // Generate 10 random tab set configurations
 function generateTabSets() {
   // Clear previous configurations
@@ -74,6 +106,9 @@ function generateTabSets() {
     
     // Random active tab (ensuring it's within the valid range)
     const activeTab = Math.floor(Math.random() * tabCount);
+    
+    // Generate random tab names for this set
+    const tabNames = getRandomTabNames(tabCount);
     
     // Calculate hover color based on active color
     const activeColor = color(usedColors[i]);
@@ -91,7 +126,8 @@ function generateTabSets() {
       tabCount: tabCount,
       activeTab: activeTab,
       activeTabBackgroundColor: usedColors[i],
-      hoverTabBackgroundColor: hoverColor
+      hoverTabBackgroundColor: hoverColor,
+      tabNames: tabNames
     });
   }
 }
@@ -140,22 +176,61 @@ function setup() {
   gui.add(params, 'fontSize', 12, 24, 1).name('Font Size').onChange(redraw);
   gui.add(params, 'showIcons').name('Show Icons').onChange(redraw);
   
+  // Add refresh button
+  const refreshControllers = gui.addFolder('Tab Names');
+  refreshControllers.add({
+    refresh: function() {
+      generateTabSets();
+      
+      // Recreate icon elements for new tab sets
+      for (let i = 0; i < iconElements.length; i++) {
+        if (iconElements[i]) {
+          iconElements[i].forEach(icon => {
+            if (icon && icon.parentNode) {
+              icon.parentNode.removeChild(icon);
+            }
+          });
+        }
+      }
+      iconElements = [];
+      
+      for (let i = 0; i < tabSets.length; i++) {
+        const tabSetIcons = [];
+        for (let j = 0; j < tabIcons.length; j++) {
+          const icon = document.createElement('span');
+          icon.className = 'material-icons';
+          icon.textContent = tabIcons[j];
+          icon.style.position = 'absolute';
+          icon.style.display = 'none';
+          icon.style.color = params.activeTabTextColor;
+          icon.style.userSelect = 'none';
+          icon.style.pointerEvents = 'none';
+          document.body.appendChild(icon);
+          tabSetIcons.push(icon);
+        }
+        iconElements.push(tabSetIcons);
+      }
+      
+      redraw();
+    }
+  }, 'refresh').name('Generate New Tab Names');
+  refreshControllers.open();
+  
   // Export
   gui.add(params, 'export').name('Export as PNG');
   
   // Apply theme
   applyTheme(getCurrentTheme());
   
-  // No need for loop() since we're just displaying static tab sets
-  noLoop();
-  redraw();
+  // Enable loop() to allow interaction
+  loop();
 }
 
 function draw() {
   // Clear canvas and set background
   background(params.backgroundColor);
   
-  const tabTitles = [
+  const defaultTabTitles = [
     params.tab1Title,
     params.tab2Title,
     params.tab3Title,
@@ -177,6 +252,36 @@ function draw() {
   
   // Position X (centered horizontally)
   const tabsX = width / 2 - tabsWidth / 2;
+  
+  // Track the current tab under the mouse
+  let hoveredSetIndex = -1;
+  let hoveredTabIndex = -1;
+  
+  // Check if mouse is over any tab
+  for (let setIndex = 0; setIndex < tabSets.length; setIndex++) {
+    const tabSet = tabSets[setIndex];
+    const tabsY = startY;
+    const tabWidth = tabsWidth / tabSet.tabCount;
+    
+    // Check if mouse is over this tab set
+    if (mouseX >= tabsX && mouseX < tabsX + tabsWidth &&
+        mouseY >= tabsY && mouseY < tabsY + tabsHeight) {
+      // Calculate which tab the mouse is over
+      const tabIndex = Math.floor((mouseX - tabsX) / tabWidth);
+      
+      // Make sure the tab index is valid
+      if (tabIndex >= 0 && tabIndex < tabSet.tabCount) {
+        hoveredSetIndex = setIndex;
+        hoveredTabIndex = tabIndex;
+      }
+    }
+    
+    // Move to next tab set position for checking the next one
+    startY += tabsHeight + spacingBetweenSets;
+  }
+  
+  // Reset for drawing
+  startY = (height - totalHeight) / 2;
   
   // Draw each tab set
   for (let setIndex = 0; setIndex < tabSets.length; setIndex++) {
@@ -200,10 +305,13 @@ function draw() {
     for (let i = 0; i < tabSet.tabCount; i++) {
       const tabX = tabsX + i * tabWidth;
       const isActive = i === tabSet.activeTab;
+      const isHovered = setIndex === hoveredSetIndex && i === hoveredTabIndex && !isActive;
       
       // Tab background
       if (isActive) {
         fill(tabSet.activeTabBackgroundColor);
+      } else if (isHovered) {
+        fill(tabSet.hoverTabBackgroundColor);
       } else {
         fill(params.tabBackgroundColor);
       }
@@ -221,8 +329,8 @@ function draw() {
       // Tab text
       fill(isActive ? params.activeTabTextColor : params.tabTextColor);
       
-      // Make sure to use the appropriate title for this tab
-      const tabTitle = tabTitles[i] || `Tab ${i+1}`;
+      // Use the tab's custom name if available, otherwise fall back to default
+      const tabTitle = tabSet.tabNames ? tabSet.tabNames[i] : (defaultTabTitles[i] || `Tab ${i+1}`);
       
       // If showing icons and this is the active tab
       if (params.showIcons && isActive && iconElements[setIndex] && iconElements[setIndex][i]) {
@@ -251,15 +359,51 @@ function draw() {
       }
     }
     
+    // Store the tab set position information for interaction
+    tabSet.x = tabsX;
+    tabSet.y = tabsY;
+    tabSet.width = tabsWidth;
+    tabSet.height = tabsHeight;
+    tabSet.tabWidth = tabWidth;
+    
     // Move to the next position for the next tab set
     startY += tabsHeight + spacingBetweenSets;
   }
+  
+  // Set cursor style based on whether mouse is over a tab
+  if (hoveredSetIndex !== -1 && hoveredTabIndex !== -1) {
+    cursor(HAND);
+  } else {
+    cursor(ARROW);
+  }
 }
 
-// We no longer need mousePressed for interaction since we're just displaying
-// static tab sets, but keep it here for future reference
+// Restore and update the mousePressed function for interaction
 function mousePressed() {
-  // Disabled interaction
+  // Check which tab set was clicked
+  for (let setIndex = 0; setIndex < tabSets.length; setIndex++) {
+    const tabSet = tabSets[setIndex];
+    
+    // Check if the click is within this tab set
+    if (mouseX >= tabSet.x && mouseX < tabSet.x + tabSet.width &&
+        mouseY >= tabSet.y && mouseY < tabSet.y + tabSet.height) {
+      
+      // Calculate which tab was clicked
+      const tabIndex = Math.floor((mouseX - tabSet.x) / tabSet.tabWidth);
+      
+      // Make sure the tab index is valid
+      if (tabIndex >= 0 && tabIndex < tabSet.tabCount) {
+        // Set this tab as active
+        tabSet.activeTab = tabIndex;
+        
+        // Redraw to show the change
+        redraw();
+      }
+      
+      // Exit the loop since we found the clicked tab set
+      break;
+    }
+  }
 }
 
 // Helper function to draw a rounded rectangle with different top and bottom radii
