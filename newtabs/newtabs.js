@@ -110,23 +110,40 @@ function generateTabSets() {
     // Generate random tab names for this set
     const tabNames = getRandomTabNames(tabCount);
     
-    // Calculate hover color based on active color
-    const activeColor = color(usedColors[i]);
-    const r = red(activeColor);
-    const g = green(activeColor);
-    const b = blue(activeColor);
+    // Get base color and create variations
+    const baseColor = color(usedColors[i]);
+    const r = red(baseColor);
+    const g = green(baseColor);
+    const b = blue(baseColor);
+    
+    // Create a very light version for the active tab (90% lighter)
+    const lightActiveColor = color(
+      r + (255 - r) * 0.9,
+      g + (255 - g) * 0.9,
+      b + (255 - b) * 0.9
+    ).toString('#rrggbb');
+    
+    // Create an even lighter version for hover (95% lighter)
     const hoverColor = color(
-      r + (255 - r) * 0.85,
-      g + (255 - g) * 0.85,
-      b + (255 - b) * 0.85
+      r + (255 - r) * 0.95,
+      g + (255 - g) * 0.95,
+      b + (255 - b) * 0.95
+    ).toString('#rrggbb');
+    
+    // Create a darker version for text (30% of original color)
+    const textColor = color(
+      r * 0.3,
+      g * 0.3,
+      b * 0.3
     ).toString('#rrggbb');
     
     // Add to tabSets array
     tabSets.push({
       tabCount: tabCount,
       activeTab: activeTab,
-      activeTabBackgroundColor: usedColors[i],
+      activeTabBackgroundColor: lightActiveColor,
       hoverTabBackgroundColor: hoverColor,
+      tabTextColor: textColor,
       tabNames: tabNames
     });
   }
@@ -286,8 +303,8 @@ function draw() {
         rect(tabX, tabsY, tabWidth, tabsHeight);
       }
       
-      // Tab text
-      fill(isActive ? params.activeTabTextColor : params.tabTextColor);
+      // Tab text - always use the tab set's text color
+      fill(tabSet.tabTextColor);
       
       // Use the tab's custom name if available, otherwise fall back to default
       const tabTitle = tabSet.tabNames ? tabSet.tabNames[i] : (defaultTabTitles[i] || `Tab ${i+1}`);
@@ -309,7 +326,8 @@ function draw() {
         
         // Adjust icon vertical position to align with text
         icon.style.top = `${tabsY + tabsHeight/2 - iconSize/2 + params.textVerticalPosition - 1}px`;
-        icon.style.color = params.activeTabTextColor;
+        // Use the tab set's text color for icons
+        icon.style.color = tabSet.tabTextColor;
         
         // Draw the text with vertical position adjustment
         text(tabTitle, startX + iconSize + spacing + textW/2, tabsY + tabsHeight / 2 + params.textVerticalPosition);
