@@ -176,46 +176,6 @@ function setup() {
   gui.add(params, 'fontSize', 12, 24, 1).name('Font Size').onChange(redraw);
   gui.add(params, 'showIcons').name('Show Icons').onChange(redraw);
   
-  // Add refresh button
-  const refreshControllers = gui.addFolder('Tab Names');
-  refreshControllers.add({
-    refresh: function() {
-      generateTabSets();
-      
-      // Recreate icon elements for new tab sets
-      for (let i = 0; i < iconElements.length; i++) {
-        if (iconElements[i]) {
-          iconElements[i].forEach(icon => {
-            if (icon && icon.parentNode) {
-              icon.parentNode.removeChild(icon);
-            }
-          });
-        }
-      }
-      iconElements = [];
-      
-      for (let i = 0; i < tabSets.length; i++) {
-        const tabSetIcons = [];
-        for (let j = 0; j < tabIcons.length; j++) {
-          const icon = document.createElement('span');
-          icon.className = 'material-icons';
-          icon.textContent = tabIcons[j];
-          icon.style.position = 'absolute';
-          icon.style.display = 'none';
-          icon.style.color = params.activeTabTextColor;
-          icon.style.userSelect = 'none';
-          icon.style.pointerEvents = 'none';
-          document.body.appendChild(icon);
-          tabSetIcons.push(icon);
-        }
-        iconElements.push(tabSetIcons);
-      }
-      
-      redraw();
-    }
-  }, 'refresh').name('Generate New Tab Names');
-  refreshControllers.open();
-  
   // Export
   gui.add(params, 'export').name('Export as PNG');
   
